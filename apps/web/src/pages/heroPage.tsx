@@ -27,7 +27,7 @@ const Heropage = () => {
               <div className="w-5 h-5 bg-white rounded-full"></div>
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              GitGust
+              GitGist
             </span>
           </div>
 
@@ -35,36 +35,27 @@ const Heropage = () => {
             {status === "loading" ? (
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
             ) : session ? (
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="text-gray-300 hover:text-white transition-all duration-300 hover:scale-105 px-4 py-2 rounded-lg hover:bg-white/10"
-                >
-                  Dashboard
-                </button>
+              <div className="flex items-center  space-x-4">
                 <div className="flex items-center space-x-2">
-                  {session.user?.image && (
-                    <img
-                      src={session.user.image}
-                      alt={session.user.name || "User"}
-                      className="w-8 h-8 rounded-full"
-                    />
-                  )}
-                  <span className="text-gray-300">
-                    {session.user?.name || session.user?.email}
-                  </span>
+                  <div className="w-14 h-14 bg-gradient-to-r from-pink-600 to-pink-800 rounded-full flex items-center justify-center mx-auto  shadow-lg shadow-pink-500/25 group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-gray-300 text-xl font-semibold">
+                      {(session.user?.name || session.user?.email)
+                        ?.trim()
+                        .charAt(0)}
+                    </span>
+                  </div>
                 </div>
                 <button
-                  onClick={() => signOut()}
-                  className="text-gray-300 hover:text-white transition-all duration-300 hover:scale-105 px-4 py-2 rounded-lg hover:bg-white/10"
+                  onClick={() => router.push("/dashboard")}
+                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
                 >
-                  Sign out
+                  Dashboard
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => signIn()}
-                className="text-gray-300 hover:text-white transition-all duration-300 hover:scale-105 px-4 py-2 rounded-lg hover:bg-white/10"
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
               >
                 Sign in
               </button>
