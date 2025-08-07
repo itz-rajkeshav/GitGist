@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 const Heropage = () => {
@@ -7,12 +7,23 @@ const Heropage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // const handleExplore = () => {
-  //   if (repoUrl.trim()) {
-  //     // Handle repository exploration logic here
-  //     console.log("Exploring repository:", repoUrl);
-  //   }
-  // };
+  const handleExplore = async () => {
+    const response = await fetch("http://localhost:3001/api/repo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ repoUrl }),
+    });
+    const data = await response.json();
+    console.log(data);
+
+    if (status === "authenticated") {
+      router.push(`/dashboard`);
+    } else {
+      signIn();
+    }
+  };
 
   return (
     <div className="bg-gray-900 min-h-screen w-full text-white font-['Comic_Neue'] relative overflow-hidden">
@@ -85,7 +96,7 @@ const Heropage = () => {
               className="flex-1 px-6 py-4 bg-gray-900/50 backdrop-blur-sm border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 transition-all duration-300 hover:border-purple-400/50"
             />
             <button
-              // onClick={handleExplore}
+              onClick={handleExplore}
               className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
             >
               Explore
