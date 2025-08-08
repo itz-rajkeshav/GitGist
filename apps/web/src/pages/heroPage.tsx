@@ -34,8 +34,8 @@ const Heropage = () => {
       <div className="relative z-10">
         <header className="flex justify-between items-center px-8 py-6">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/25">
-              <div className="w-5 h-5 bg-white rounded-full"></div>
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg shadow-purple-500/25">
+              <div className="w-4 h-4 bg-white rounded-full"></div>
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
               GitGist
@@ -46,27 +46,17 @@ const Heropage = () => {
             {status === "loading" ? (
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
             ) : session ? (
-              <div className="flex items-center  space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-14 h-14 bg-gradient-to-r from-pink-600 to-pink-800 rounded-full flex items-center justify-center mx-auto  shadow-lg shadow-pink-500/25 group-hover:scale-110 transition-transform duration-300">
-                    <span className="text-gray-300 text-xl font-semibold">
-                      {(session.user?.name || session.user?.email)
-                        ?.trim()
-                        .charAt(0)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => router.push("/dashboard")}
-                  className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
-                >
-                  Dashboard
-                </button>
+              <div className="w-14 h-14 bg-gradient-to-r from-pink-600 to-pink-800 rounded-full flex items-center justify-center mx-auto  shadow-lg shadow-pink-500/25 group-hover:scale-110 transition-transform duration-300">
+                <span className="text-gray-300 text-xl font-semibold">
+                  {(session.user?.name || session.user?.email)
+                    ?.trim()
+                    .charAt(0)}
+                </span>
               </div>
             ) : (
               <button
                 onClick={() => signIn()}
-                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
+                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
               >
                 Sign in
               </button>
@@ -75,12 +65,10 @@ const Heropage = () => {
         </header>
 
         <main className="flex flex-col items-center justify-center px-8 py-16 max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent drop-shadow-2xl">
+          <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight text-white">
             Simplify GitHub
             <br />
-            <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              Repository Exploration
-            </span>
+            <span className="text-blue-400">Repository Exploration</span>
           </h1>
 
           <p className="text-xl text-gray-300 mb-12 max-w-2xl leading-relaxed">
@@ -93,11 +81,12 @@ const Heropage = () => {
               placeholder="Enter a GitHub repository URL"
               value={repoUrl}
               onChange={(e) => setRepoUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleExplore()}
               className="flex-1 px-6 py-4 bg-gray-900/50 backdrop-blur-sm border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 transition-all duration-300 hover:border-purple-400/50"
             />
             <button
               onClick={handleExplore}
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
+              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
             >
               Explore
             </button>

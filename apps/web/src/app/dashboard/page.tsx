@@ -1,5 +1,6 @@
 "use client";
 
+import Sidebar from "@/components/sidebar";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -15,8 +16,8 @@ export default function Dashboard() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400"></div>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
       </div>
     );
   }
@@ -26,31 +27,47 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white font-['Comic_Neue']">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-black to-cyan-900/20"></div>
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-slate-900 text-white font-sans">
+      <Sidebar />
 
-      <div className="relative z-10">
-        <header className="flex justify-end items-center  px-8 py-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 space-y-4">
-              <div className="w-14 h-14 bg-gradient-to-r from-pink-600 to-pink-800 rounded-full flex items-center justify-center mx-auto  shadow-lg shadow-pink-500/25 group-hover:scale-110 transition-transform duration-300">
-                <span className="text-gray-300 text-xl font-semibold">
-                  {(session.user?.name || session.user?.email)
-                    ?.trim()
-                    .charAt(0)}
-                </span>
-              </div>
+      {/* Main Content Area */}
+      <div className="ml-64 p-8">
+        <div className="max-w-7xl mx-auto">
+          <header className="mb-8">
+            <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
+            <p className="text-slate-300">
+              Welcome back, {session?.user?.name || "User"}
+            </p>
+          </header>
+
+          {/* Dashboard Content */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6 hover:bg-slate-750 transition-colors duration-200">
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Repository Analysis
+              </h3>
+              <p className="text-slate-300">
+                Analyze GitHub repositories with AI-powered insights.
+              </p>
             </div>
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black transform hover:scale-105 shadow-lg shadow-purple-500/25"
-            >
-              Sign out
-            </button>
+
+            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6 hover:bg-slate-750 transition-colors duration-200">
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Tech Stack Detection
+              </h3>
+              <p className="text-slate-300">
+                Automatically detect technologies used in projects.
+              </p>
+            </div>
+
+            <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6 hover:bg-slate-750 transition-colors duration-200">
+              <h3 className="text-lg font-semibold text-white mb-2">AI Q&A</h3>
+              <p className="text-slate-300">
+                Ask questions about your repositories and get instant answers.
+              </p>
+            </div>
           </div>
-        </header>
+        </div>
       </div>
     </div>
   );
