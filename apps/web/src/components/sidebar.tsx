@@ -1,5 +1,13 @@
+"use client";
 import React from "react";
-import { Folder, Cpu, MessageCircle, Settings, LogOut } from "lucide-react";
+import {
+  Folder,
+  Cpu,
+  MessageCircle,
+  Settings,
+  LogOut,
+  Home,
+} from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 const Sidebar = () => {
@@ -14,9 +22,10 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { icon: Folder, label: "Folder Structure", href: "#" },
-    { icon: Cpu, label: "Tech Stack", href: "#" },
-    { icon: MessageCircle, label: "AI Q&A", href: "#" },
+    { icon: Home, label: "Dashboard", href: "/dashboard" },
+    { icon: Folder, label: "Folder Structure", href: "/folderStr" },
+    { icon: Cpu, label: "Tech Stack", href: "/techStack" },
+    { icon: MessageCircle, label: "AI Q&A", href: "/ai" },
     { icon: Settings, label: "Settings", href: "#" },
   ];
 
