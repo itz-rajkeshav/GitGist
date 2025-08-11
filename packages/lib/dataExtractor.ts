@@ -15,7 +15,8 @@ export function extractRepoDataForRedux(apiResponse: any): ExtractedRepoData {
     forks: apiResponse.forks || 0,
     url: apiResponse.url || '',
     created_at: apiResponse.created_at || '',
-    updated_at: apiResponse.updated_at || ''
+    updated_at: apiResponse.updated_at || '',
+    dependencies: apiResponse.dependencies || []
   };
 
   const commits: commit[] = apiResponse.commits?.map((commitItem: any) => ({

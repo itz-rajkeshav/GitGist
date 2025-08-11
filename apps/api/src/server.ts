@@ -27,6 +27,37 @@ async function getRepoDetail(repoUrl: string) {
       octokit.request(`GET /repos/${owner}/${repo}/git/trees/main?recursive=1`)
     ]);
 
+    let dependencies: any[] = [];
+    try {
+      const {data: packageJsonData} = await octokit.request(`GET /repos/${owner}/${repo}/contents/package.json`);
+
+      if ('content' in packageJsonData) {
+        // Decode base64 content
+        const packageJsonContent = Buffer.from(packageJsonData.content, 'base64').toString('utf-8');
+        const packageJson = JSON.parse(packageJsonContent);
+
+        // Extract dependencies and devDependencies
+        const deps = packageJson.dependencies || {};
+        const devDeps = packageJson.devDependencies || {};
+
+        // Convert to array format with name and version
+        dependencies = [
+          ...Object.entries(deps).map(([name, version]) => ({
+            name,
+            version,
+            type: 'dependency'
+          })),
+          ...Object.entries(devDeps).map(([name, version]) => ({
+            name,
+            version,
+            type: 'devDependency'
+          }))
+        ];
+      }
+    } catch (depError) {
+      console.log(`No package.json found or error parsing dependencies for ${owner}/${repo}`);
+    }
+
     return {
       name: repoInfo.name,
       description: repoInfo.description,
@@ -37,6 +68,7 @@ async function getRepoDetail(repoUrl: string) {
       folderstructure: folderstructure,
       stars: repoInfo.stargazers_count,
       forks: repoInfo.forks_count,
+      dependencies: dependencies,
       url: repoInfo.html_url,
       created_at: repoInfo.created_at,
       updated_at: repoInfo.updated_at

@@ -14,26 +14,40 @@ const Heropage = () => {
   const router = useRouter();
   const dispatch = useDispatch();
   const handleExplore = async () => {
-    const response = await fetch("http://localhost:3001/api/repo", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ repoUrl }),
-    });
-    const data = await response.json();
-    console.log(data);
+    try {
+      const response = await fetch("http://localhost:3001/api/repo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl }),
+      });
 
-    const { repoData, commits, folderStructure } =
-      extractRepoDataForRedux(data);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    dispatch(setRepoData([repoData]));
-    dispatch(setCommit(commits));
-    dispatch(setFolderStructure(folderStructure));
-    if (status === "authenticated") {
-      router.push(`/dashboard`);
-    } else {
-      signIn();
+      const data = await response.json();
+      console.log("Full API Response:", data);
+
+      const dependencies = data.dependencies || [];
+      console.log("Dependencies found:", dependencies.length);
+
+      const { repoData, commits, folderStructure } =
+        extractRepoDataForRedux(data);
+
+      dispatch(setRepoData([repoData]));
+      dispatch(setCommit(commits));
+      dispatch(setFolderStructure(folderStructure));
+
+      if (status === "authenticated") {
+        router.push(`/dashboard`);
+      } else {
+        signIn();
+      }
+    } catch (error) {
+      console.error("Error fetching repository data:", error);
+      // You might want to show an error message to the user here
     }
   };
 

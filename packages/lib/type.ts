@@ -8,6 +8,12 @@ export interface githubFile{
         url:string,
     }
 }
+export interface Dependency {
+    name: string;
+    version: string;
+    type: 'dependency' | 'devDependency';
+}
+
 export interface RepoData {
     name:string;
     description:string;
@@ -17,6 +23,7 @@ export interface RepoData {
     url:string;
     updated_at:string;
     created_at:string;
+    dependencies?: Dependency[];
 }
 export interface commit{
     commit:{
