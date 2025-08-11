@@ -1,12 +1,18 @@
 import React, { useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
+import { useDispatch } from "react-redux";
+import {
+  setCommit,
+  setRepoData,
+  setFolderStructure,
+} from "../../../../packages/slice/repoSlice";
+import { extractRepoDataForRedux } from "../../../../packages/lib/dataExtractor";
 const Heropage = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const { data: session, status } = useSession();
   const router = useRouter();
-
+  const dispatch = useDispatch();
   const handleExplore = async () => {
     const response = await fetch("http://localhost:3001/api/repo", {
       method: "POST",
@@ -18,6 +24,12 @@ const Heropage = () => {
     const data = await response.json();
     console.log(data);
 
+    const { repoData, commits, folderStructure } =
+      extractRepoDataForRedux(data);
+
+    dispatch(setRepoData([repoData]));
+    dispatch(setCommit(commits));
+    dispatch(setFolderStructure(folderStructure));
     if (status === "authenticated") {
       router.push(`/dashboard`);
     } else {
