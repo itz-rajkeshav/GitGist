@@ -18,13 +18,14 @@ async function getRepoDetail(repoUrl: string) {
 
     const [owner, repo] = match.slice(1);
 
-    const [{data:repoInfo},{data:language},{data:commits},{data:contributors},{data:content},{data:folderstructure}] = await Promise.all([
-      octokit.request(`GET /repos/${owner}/${repo}`),
+    const {data: repoInfo} = await octokit.request(`GET /repos/${owner}/${repo}`);
+
+    const [{data:language},{data:commits},{data:contributors},{data:content},{data:folderstructure}] = await Promise.all([
       octokit.request(`GET /repos/${owner}/${repo}/languages`),
       octokit.request(`GET /repos/${owner}/${repo}/commits`),
       octokit.request(`GET /repos/${owner}/${repo}/contributors`),
       octokit.request(`GET /repos/${owner}/${repo}/contents`),
-      octokit.request(`GET /repos/${owner}/${repo}/git/trees/main?recursive=1`)
+      octokit.request(`GET /repos/${owner}/${repo}/git/trees/${repoInfo.default_branch}?recursive=1`)
     ]);
 
     let dependencies: any[] = [];
