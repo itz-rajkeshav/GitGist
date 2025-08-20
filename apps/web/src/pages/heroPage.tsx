@@ -15,7 +15,8 @@ const Heropage = () => {
   const dispatch = useDispatch();
   const handleExplore = async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/repo", {
+      // First, get basic repository data
+      const repoResponse = await fetch("http://localhost:3001/api/repo", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -23,31 +24,52 @@ const Heropage = () => {
         body: JSON.stringify({ repoUrl }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!repoResponse.ok) {
+        throw new Error(`HTTP error! status: ${repoResponse.status}`);
       }
 
-      const data = await response.json();
-      console.log("Full API Response:", data);
+      const repoData = await repoResponse.json();
+      console.log("Repository data:", repoData);
 
-      const dependencies = data.dependencies || [];
-      console.log("Dependencies found:", dependencies.length);
+      // Store repository data in Redux
+      const {
+        repoData: extractedRepoData,
+        commits,
+        folderStructure,
+      } = extractRepoDataForRedux(repoData);
 
-      const { repoData, commits, folderStructure } =
-        extractRepoDataForRedux(data);
-
-      dispatch(setRepoData([repoData]));
+      dispatch(setRepoData([extractedRepoData]));
       dispatch(setCommit(commits));
       dispatch(setFolderStructure(folderStructure));
 
+      fetch("http://localhost:3001/api/repo/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl }),
+      })
+        .then((response) => response.json())
+        .then((astData) => {
+          // Store AST repo data in localStorage for the dashboard
+          localStorage.setItem(
+            "astAnalysisResult",
+            JSON.stringify(astData.data)
+          );
+          console.log(astData.data);
+
+          localStorage.setItem("currentRepoUrl", repoUrl);
+        })
+        .catch((error) => {
+          console.error("AST analysis failed:", error);
+        });
       if (status === "authenticated") {
-        router.push(`/dashboard`);
+        router.push(`/dashboard?repo=${encodeURIComponent(repoUrl)}`);
       } else {
         signIn();
       }
     } catch (error) {
       console.error("Error fetching repository data:", error);
-      // You might want to show an error message to the user here
     }
   };
 

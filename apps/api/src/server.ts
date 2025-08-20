@@ -4,12 +4,15 @@ import morgan from "morgan";
 import cors from "cors";
 import { Octokit } from "octokit";
 import dotenv from "dotenv";
+import { ASTAnalysisService } from "./services/astAnalysisService";
 
 dotenv.config();
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN
 });
+
+const astAnalysisService = new ASTAnalysisService(process.env.GITHUB_TOKEN);
 
 async function getRepoDetail(repoUrl: string) {
   try {
@@ -98,6 +101,75 @@ export const createServer = (): Express => {
         }
         const repoData = await getRepoDetail(repoUrl);
         return res.status(200).json(repoData);
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .post("/api/repo/analyze", async (req, res) => {
+      try {
+        const { repoUrl } = req.body;
+        if (!repoUrl) {
+          return res.status(400).json({ error: "Repository URL is required" });
+        }
+
+        console.log(`Starting AST analysis for: ${repoUrl}`);
+        const result = await astAnalysisService.analyzeRepositoryWithConsoleOutput(repoUrl);
+
+        return res.status(200).json({
+          success: true,
+          data: result
+        });
+      } catch (error: any) {
+        console.error("AST Analysis error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .post("/api/repo/analyze-file", async (req, res) => {
+      try {
+        const { repoUrl, filePath } = req.body;
+        if (!repoUrl || !filePath) {
+          return res.status(400).json({ error: "Repository URL and file path are required" });
+        }
+
+        const result = await astAnalysisService.analyzeFile(repoUrl, filePath);
+        return res.status(200).json({
+          success: true,
+          data: result
+        });
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .get("/api/repo/stats/:repoUrl", async (req, res) => {
+      try {
+        const repoUrl = decodeURIComponent(req.params.repoUrl);
+        const stats = await astAnalysisService.getRepositoryStats(repoUrl);
+        return res.status(200).json({
+          success: true,
+          data: stats
+        });
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .get("/api/repo/stored", async (req, res) => {
+      try {
+        const stored = await astAnalysisService.listStoredAnalyses();
+        return res.status(200).json({
+          success: true,
+          data: stored
+        });
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .get("/api/repo/storage-stats", async (req, res) => {
+      try {
+        const stats = await astAnalysisService.getStorageStats();
+        return res.status(200).json({
+          success: true,
+          data: stats
+        });
       } catch (error: any) {
         return res.status(500).json({ error: error.message });
       }

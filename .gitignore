@@ -25,7 +25,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
 .env
 # local env files
 .env.local
@@ -34,3 +33,7 @@ yarn-error.log*
 .env.production.local
 # turbo
 .turbo
+# local storage file
+apps/api/ast_analysis
+apps/api/src/test-ast.ts
+apps/api/example-usage.md

@@ -11,11 +11,17 @@
     "test": "turbo run test"
   },
   "dependencies": {
+    "@babel/parser": "^7.28.3",
+    "@babel/traverse": "^7.28.3",
+    "@babel/types": "^7.28.2",
     "@reduxjs/toolkit": "^2.8.2",
+    "fs-extra": "^11.3.1",
     "next-auth": "^4.24.11",
     "react-redux": "^9.2.0"
   },
   "devDependencies": {
+    "@types/babel__traverse": "^7.28.0",
+    "@types/fs-extra": "^11.0.4",
     "prettier": "^3.2.5",
     "turbo": "^2.5.4"
   },
