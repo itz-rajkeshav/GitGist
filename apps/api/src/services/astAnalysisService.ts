@@ -195,45 +195,4 @@ export class ASTAnalysisService {
       throw new Error(`Failed to cleanup old analyses: ${error.message}`);
     }
   }
-
-  /**
-   * Analyze repository with real-time console output
-   */
-  async analyzeRepositoryWithConsoleOutput(repoUrl: string): Promise<AnalysisResult> {
-    console.log('🚀 Starting AST Analysis for repository:', repoUrl);
-    console.log('=' .repeat(60));
-    
-    const result = await this.analyzeRepository(repoUrl, (progress) => {
-      const percentage = Math.round((progress.processedFiles / progress.totalFiles) * 100);
-      console.log(`📊 Progress: ${percentage}% (${progress.processedFiles}/${progress.totalFiles})`);
-      console.log(`📄 Current file: ${progress.currentFile}`);
-      
-      if (progress.errors.length > 0) {
-        console.log(`⚠️  Errors so far: ${progress.errors.length}`);
-      }
-      console.log('-'.repeat(40));
-    });
-    
-    console.log('✅ Analysis Complete!');
-    console.log('=' .repeat(60));
-    console.log('📈 Final Summary:');
-    console.log(`   Total Files: ${result.totalFiles}`);
-    console.log(`   Processed: ${result.processedFiles}`);
-    console.log(`   Functions: ${result.summary.totalFunctions}`);
-    console.log(`   Imports: ${result.summary.totalImports}`);
-    console.log(`   Exports: ${result.summary.totalExports}`);
-    console.log(`   Classes: ${result.summary.totalClasses}`);
-    console.log(`   Variables: ${result.summary.totalVariables}`);
-    console.log(`   Duration: ${result.duration}ms`);
-    console.log(`   Storage: ${result.storagePath}`);
-    
-    if (result.errors.length > 0) {
-      console.log(`⚠️  Errors: ${result.errors.length}`);
-      result.errors.forEach(error => console.log(`   - ${error}`));
-    }
-    
-    console.log('=' .repeat(60));
-    
-    return result;
-  }
 }

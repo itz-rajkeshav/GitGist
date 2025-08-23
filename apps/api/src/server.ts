@@ -113,7 +113,7 @@ export const createServer = (): Express => {
         }
 
         console.log(`Starting AST analysis for: ${repoUrl}`);
-        const result = await astAnalysisService.analyzeRepositoryWithConsoleOutput(repoUrl);
+        const result = await astAnalysisService.analyzeRepository(repoUrl);
 
         return res.status(200).json({
           success: true,
