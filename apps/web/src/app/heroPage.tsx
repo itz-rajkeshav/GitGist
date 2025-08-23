@@ -3,12 +3,20 @@
 import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import {
+  setCommit,
+  setRepoData,
+  setFolderStructure,
+} from "../../../../packages/slice/repoSlice";
+import { extractRepoDataForRedux } from "../../../../packages/lib/dataExtractor";
 
 const Heropage = () => {
   const [repoUrl, setRepoUrl] = useState("");
   const [mounted, setMounted] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
+  const dispatch = useDispatch();
 
   // Ensure component is mounted before using session
   useEffect(() => {
@@ -17,14 +25,61 @@ const Heropage = () => {
 
   const handleExplore = async () => {
     try {
+      // First, get basic repository data
+      const repoResponse = await fetch("http://localhost:3001/api/repo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl }),
+      });
+
+      if (!repoResponse.ok) {
+        throw new Error(`HTTP error! status: ${repoResponse.status}`);
+      }
+
+      const repoData = await repoResponse.json();
+      console.log("Repository data:", repoData);
+
+      // Store repository data in Redux
+      const {
+        repoData: extractedRepoData,
+        commits,
+        folderStructure,
+      } = extractRepoDataForRedux(repoData);
+
+      dispatch(setRepoData([extractedRepoData]));
+      dispatch(setCommit(commits));
+      dispatch(setFolderStructure(folderStructure));
+
+      fetch("http://localhost:3001/api/repo/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl }),
+      })
+        .then((response) => response.json())
+        .then((astData) => {
+          // Store AST repo data in localStorage for the dashboard
+          localStorage.setItem(
+            "astAnalysisResult",
+            JSON.stringify(astData.data)
+          );
+          console.log(astData.data);
+
+          localStorage.setItem("currentRepoUrl", repoUrl);
+        })
+        .catch((error) => {
+          console.error("AST analysis failed:", error);
+        });
       if (status === "authenticated") {
-        // For now, just redirect to dashboard without complex analysis
         router.push(`/dashboard?repo=${encodeURIComponent(repoUrl)}`);
       } else {
         signIn();
       }
     } catch (error) {
-      console.error("Error handling explore:", error);
+      console.error("Error fetching repository data:", error);
     }
   };
 
@@ -69,144 +124,86 @@ const Heropage = () => {
             ) : (
               <button
                 onClick={() => signIn()}
-                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-cyan-500 text-white rounded-lg hover:from-purple-600 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
               >
-                Sign In
+                Sign in
               </button>
             )}
           </div>
         </header>
 
-        <main className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] px-8 text-center">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-6xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent leading-tight">
-              Discover the
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                Hidden Gems
-              </span>
-              <br />
-              in Your Code
-            </h1>
+        <main className="flex flex-col items-center justify-center px-8 py-16 max-w-4xl mx-auto text-center">
+          <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight text-white">
+            Simplify GitHub
+            <br />
+            <span className="text-blue-400">Repository Exploration</span>
+          </h1>
 
-            <p className="text-xl md:text-2xl text-gray-300 mb-12 leading-relaxed max-w-3xl mx-auto">
-              Unlock the secrets of your repositories with our advanced AST
-              analysis.
-              <br />
-              Understand code structure, dependencies, and patterns like never
-              before.
+          <p className="text-xl text-gray-300 mb-12 max-w-2xl leading-relaxed">
+            Get the best details about any repo, just from its link.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl mb-16">
+            <input
+              type="text"
+              placeholder="Enter a GitHub repository URL"
+              value={repoUrl}
+              onChange={(e) => setRepoUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleExplore()}
+              className="flex-1 px-6 py-4 bg-gray-900/50 backdrop-blur-sm border border-purple-500/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 transition-all duration-300 hover:border-purple-400/50"
+            />
+
+            <button
+              onClick={handleExplore}
+              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              Explore
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16 w-full max-w-4xl">
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/25">
+                <span className="text-white font-bold text-xl">1</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-purple-200">
+                Easy to use
+              </h3>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-cyan-600 to-cyan-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/25">
+                <span className="text-white font-bold text-xl">2</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-cyan-200">
+                In-depth summaries
+              </h3>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-pink-600 to-pink-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-pink-500/25">
+                <span className="text-white font-bold text-xl">3</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-pink-200">
+                Quick insights
+              </h3>
+            </div>
+
+            <div className="text-center group">
+              <div className="w-16 h-16 bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-500/25">
+                <span className="text-white font-bold text-xl">4</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-emerald-200">
+                Q&A regarding the repository
+              </h3>
+            </div>
+          </div>
+
+          <div className="max-w-2xl">
+            <p className="text-gray-300 leading-relaxed font-medium">
+              New developers often struggle to quickly understand what a GitHub
+              repository contains and its significance.
             </p>
-
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <div className="relative w-full max-w-md">
-                <input
-                  type="text"
-                  placeholder="Enter GitHub repository URL..."
-                  value={repoUrl}
-                  onChange={(e) => setRepoUrl(e.target.value)}
-                  className="w-full px-6 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
-                  onKeyPress={(e) => e.key === "Enter" && handleExplore()}
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 rounded-xl blur-xl -z-10"></div>
-              </div>
-
-              <button
-                onClick={handleExplore}
-                disabled={!repoUrl.trim()}
-                className="px-8 py-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-cyan-600 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none disabled:shadow-none"
-              >
-                Explore Repository
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300 group">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-white">
-                  AST Analysis
-                </h3>
-                <p className="text-gray-400">
-                  Deep dive into your code structure with Abstract Syntax Tree
-                  analysis
-                </p>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300 group">
-                <div className="w-16 h-16 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-white">
-                  Folder Structure
-                </h3>
-                <p className="text-gray-400">
-                  Visualize and understand your project's organization
-                </p>
-              </div>
-
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300 group">
-                <div className="w-16 h-16 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <svg
-                    className="w-8 h-8 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold mb-2 text-white">
-                  Tech Stack
-                </h3>
-                <p className="text-gray-400">
-                  Discover technologies and dependencies in your codebase
-                </p>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <p className="text-gray-400 mb-4">
-                Trusted by developers worldwide
-              </p>
-              <div className="flex justify-center items-center space-x-8 opacity-50">
-                <div className="text-2xl font-bold text-gray-300">GitHub</div>
-                <div className="text-2xl font-bold text-gray-300">React</div>
-                <div className="text-2xl font-bold text-gray-300">Node.js</div>
-                <div className="text-2xl font-bold text-gray-300">
-                  TypeScript
-                </div>
-              </div>
-            </div>
           </div>
         </main>
       </div>
