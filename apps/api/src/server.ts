@@ -2,38 +2,47 @@ import { json, urlencoded } from "body-parser";
 import express, { type Express } from "express";
 import morgan from "morgan";
 import cors from "cors";
-import { Octokit } from "octokit";
 import dotenv from "dotenv";
 import { ASTAnalysisService } from "./services/astAnalysisService";
 
 dotenv.config();
 
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
-});
+// Dynamic import for Octokit to resolve module compatibility
+let octokit: any;
+
+async function initializeOctokit() {
+  if (!octokit) {
+    const { Octokit } = await import("octokit");
+    octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN
+    });
+  }
+  return octokit;
+}
 
 const astAnalysisService = new ASTAnalysisService(process.env.GITHUB_TOKEN);
 
 async function getRepoDetail(repoUrl: string) {
   try {
+    const octokitInstance = await initializeOctokit();
     const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
     if (!match) throw new Error('Invalid GitHub repository URL');
 
     const [owner, repo] = match.slice(1);
 
-    const {data: repoInfo} = await octokit.request(`GET /repos/${owner}/${repo}`);
+    const {data: repoInfo} = await octokitInstance.request(`GET /repos/${owner}/${repo}`);
 
     const [{data:language},{data:commits},{data:contributors},{data:content},{data:folderstructure}] = await Promise.all([
-      octokit.request(`GET /repos/${owner}/${repo}/languages`),
-      octokit.request(`GET /repos/${owner}/${repo}/commits`),
-      octokit.request(`GET /repos/${owner}/${repo}/contributors`),
-      octokit.request(`GET /repos/${owner}/${repo}/contents`),
-      octokit.request(`GET /repos/${owner}/${repo}/git/trees/${repoInfo.default_branch}?recursive=1`)
+      octokitInstance.request(`GET /repos/${owner}/${repo}/languages`),
+      octokitInstance.request(`GET /repos/${owner}/${repo}/commits`),
+      octokitInstance.request(`GET /repos/${owner}/${repo}/contributors`),
+      octokitInstance.request(`GET /repos/${owner}/${repo}/contents`),
+      octokitInstance.request(`GET /repos/${owner}/${repo}/git/trees/${repoInfo.default_branch}?recursive=1`)
     ]);
 
     let dependencies: any[] = [];
     try {
-      const {data: packageJsonData} = await octokit.request(`GET /repos/${owner}/${repo}/contents/package.json`);
+      const {data: packageJsonData} = await octokitInstance.request(`GET /repos/${owner}/${repo}/contents/package.json`);
 
       if ('content' in packageJsonData) {
         // Decode base64 content

@@ -146,7 +146,8 @@ export class ASTAnalysisService {
    */
   async getRepositoryStats(repoUrl: string): Promise<any> {
     try {
-      return await this.fileFetcher.getRepoStats(repoUrl);
+      const repoInfo = this.fileFetcher.parseRepoUrl(repoUrl);
+      return await this.fileFetcher.getRepoStats(repoInfo);
     } catch (error: any) {
       throw new Error(`Failed to get repository stats: ${error.message}`);
     }
