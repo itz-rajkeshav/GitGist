@@ -35,5 +35,3 @@ yarn-error.log*
 .turbo
 # local storage file
 apps/api/ast_analysis
-apps/api/src/test-ast.ts
-apps/api/example-usage.md
