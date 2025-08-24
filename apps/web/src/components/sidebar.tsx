@@ -10,7 +10,11 @@ import {
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
-const Sidebar = () => {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { data: session } = useSession();
 
   const user = {
@@ -20,6 +24,13 @@ const Sidebar = () => {
 
   const getUserInitial = (name: string) => {
     return name.charAt(0).toUpperCase();
+  };
+
+  const handleNavigation = () => {
+    // Close mobile sidebar if onClose function is provided
+    if (onClose) {
+      onClose();
+    }
   };
 
   const menuItems = [
@@ -47,6 +58,7 @@ const Sidebar = () => {
             <li key={index}>
               <a
                 href={item.href}
+                onClick={handleNavigation}
                 className="flex items-center space-x-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition-all duration-200 group w-full h-12"
               >
                 <item.icon className="w-5 h-5 text-slate-400 group-hover:text-blue-400 transition-colors duration-200" />
