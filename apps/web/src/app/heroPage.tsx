@@ -26,16 +26,13 @@ const Heropage = () => {
   const handleExplore = async () => {
     try {
       // First, get basic repository data
-      const repoResponse = await fetch(
-        "https://gitgist.onrender.com/api/repo",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ repoUrl }),
-        }
-      );
+      const repoResponse = await fetch("http://localhost:3001/api/repo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl }),
+      });
 
       if (!repoResponse.ok) {
         throw new Error(`HTTP error! status: ${repoResponse.status}`);
@@ -55,7 +52,7 @@ const Heropage = () => {
       dispatch(setCommit(commits));
       dispatch(setFolderStructure(folderStructure));
 
-      fetch("https://gitgist.onrender.com/api/repo/analyze", {
+      fetch("http://localhost:3001/api/repo/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
