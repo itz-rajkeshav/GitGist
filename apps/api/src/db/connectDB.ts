@@ -1,5 +1,5 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 dotenv.config();
 const pc = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY || '',
@@ -8,8 +8,8 @@ const pc = new Pinecone({
 async function ensureIndex() {
   try {
     await pc.createIndex({
-      name: "gitgist",
-      dimension: 1536,
+      name: "gitgist-384",
+      dimension: 384,
       metric: "cosine",
       spec: {
         serverless: {
@@ -18,10 +18,10 @@ async function ensureIndex() {
         }
       }
     });
-    console.log("Pinecone index 'gitgist' created successfully");
+    console.log("Pinecone index 'gitgist-384' created successfully");
   } catch (error: any) {
     if (error.message?.includes('ALREADY_EXISTS')) {
-      console.log("ℹPinecone index 'gitgist' already exists");
+      console.log("ℹPinecone index 'gitgist-384' already exists");
     } else {
       console.error("Error creating Pinecone index:", error.message);
     }

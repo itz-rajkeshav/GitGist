@@ -1,6 +1,8 @@
 import { ASTParser, FileAnalysis } from './astParser';
 import { GitHubFileFetcher, GitHubFile } from './githubFileFetcher';
 import { LocalStorage } from './localStorage';
+import { chunkAll, SimpleChunk } from './simpleChunker';
+import { EmbeddingService, EmbeddingResult } from './embeddingService';
 
 export interface AnalysisProgress {
   totalFiles: number;
@@ -18,22 +20,28 @@ export interface AnalysisResult {
   storagePath: string;
   errors: string[];
   duration: number;
+  chunks?: SimpleChunk[];
+  embeddingResult?: EmbeddingResult;
 }
 
 export class ASTAnalysisService {
   private astParser: ASTParser;
   private fileFetcher: GitHubFileFetcher;
   private localStorage: LocalStorage;
+  private embeddingService: EmbeddingService;
 
   constructor(githubToken?: string, storageConfig?: any) {
     this.astParser = new ASTParser();
     this.fileFetcher = new GitHubFileFetcher(githubToken);
     this.localStorage = new LocalStorage(storageConfig);
+    this.embeddingService = new EmbeddingService();
   }
 
   async analyzeRepository(
     repoUrl: string, 
-    progressCallback?: (progress: AnalysisProgress) => void
+    progressCallback?: (progress: AnalysisProgress) => void,
+    enableChunking: boolean = true,
+    enableEmbedding: boolean = true
   ): Promise<AnalysisResult> {
     const startTime = Date.now();
     const errors: string[] = [];
@@ -94,6 +102,44 @@ export class ASTAnalysisService {
       console.log(`Saving ${analyses.length} analyses to local storage...`);
       const { savedFiles, summary } = await this.localStorage.saveMultipleFileAnalyses(repoUrl, analyses);
       
+      // Generate chunks if enabled
+      let chunks: SimpleChunk[] | undefined;
+      if (enableChunking) {
+        try {
+          console.log(`\n🔪 Starting chunking process...`);
+          chunks = chunkAll(analyses, { maxSize: 500, combine: true });
+          console.log(`✅ Generated ${chunks.length} chunks`);
+          
+          // Log detailed chunk information
+          this.logChunks(chunks);
+          
+          // Log chunk statistics by type
+          this.logChunkStatistics(chunks);
+        } catch (error: any) {
+          const errorMsg = `Chunking failed: ${error.message}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+        }
+      }
+      
+      // Generate embeddings if enabled
+      let embeddingResult: EmbeddingResult | undefined;
+      if (enableEmbedding && chunks) {
+        try {
+          console.log(`\n🚀 Starting FREE embedding process...`);
+          console.log(`📊 Preparing to embed ${chunks.length} chunks...`);
+          
+          embeddingResult = await this.embeddingService.embedRepository(chunks, repoUrl);
+          
+          // Log detailed embedding results
+          this.logEmbeddingResults(embeddingResult);
+        } catch (error: any) {
+          const errorMsg = `Embedding failed: ${error.message}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+        }
+      }
+      
       const duration = Date.now() - startTime;
       
       const result: AnalysisResult = {
@@ -104,7 +150,9 @@ export class ASTAnalysisService {
         summary,
         storagePath: savedFiles[savedFiles.length - 1], // Index file path
         errors,
-        duration
+        duration,
+        chunks,
+        embeddingResult
       };
       
       console.log(`Analysis completed in ${duration}ms`);
@@ -116,6 +164,82 @@ export class ASTAnalysisService {
       const duration = Date.now() - startTime;
       throw new Error(`Repository analysis failed after ${duration}ms: ${error.message}`);
     }
+  }
+
+  /**
+   * Log chunk details in a simple format
+   */
+  private logChunks(chunks: SimpleChunk[]): void {
+    console.log('\n📝 Chunk Summary:');
+    console.log('─'.repeat(60));
+    
+    chunks.forEach((chunk, index) => {
+      console.log(`${index + 1}. ${chunk.type.toUpperCase()}: ${chunk.name || chunk.file}`);
+      console.log(`   File: ${chunk.file}`);
+      console.log(`   Size: ${chunk.text.length} chars`);
+      console.log(`   Preview: ${chunk.text.substring(0, 80)}${chunk.text.length > 80 ? '...' : ''}`);
+      console.log('   ' + '─'.repeat(40));
+    });
+  }
+
+  /**
+   * Log chunk statistics by type
+   */
+  private logChunkStatistics(chunks: SimpleChunk[]): void {
+    const stats = {
+      function: 0,
+      class: 0,
+      import: 0,
+      export: 0,
+      variable: 0,
+      summary: 0
+    };
+    
+    chunks.forEach(chunk => {
+      stats[chunk.type]++;
+    });
+    
+    console.log('\n📊 Chunk Statistics by Type:');
+    console.log('─'.repeat(40));
+    Object.entries(stats).forEach(([type, count]) => {
+      if (count > 0) {
+        console.log(`   ${type.toUpperCase()}: ${count} chunks`);
+      }
+    });
+    console.log(`   TOTAL: ${chunks.length} chunks`);
+    console.log('─'.repeat(40));
+  }
+
+  /**
+   * Log detailed embedding results
+   */
+  private logEmbeddingResults(embeddingResult: EmbeddingResult): void {
+    console.log('\n🎉 Embedding Results:');
+    console.log('─'.repeat(50));
+    console.log(`   Total chunks: ${embeddingResult.totalChunks}`);
+    console.log(`   Successfully embedded: ${embeddingResult.embeddedChunks}`);
+    console.log(`   Failed chunks: ${embeddingResult.failedChunks}`);
+    console.log(`   Errors: ${embeddingResult.errors.length}`);
+    
+    if (embeddingResult.errors.length > 0) {
+      console.log('\n❌ Embedding Errors:');
+      embeddingResult.errors.forEach((error, index) => {
+        console.log(`   ${index + 1}. ${error}`);
+      });
+    }
+    
+    // Log sample embedded chunks
+    console.log('\n🔍 Sample Embedded Chunks:');
+    const sampleChunks = embeddingResult.chunkDetails.slice(0, 3);
+    sampleChunks.forEach((chunkDetail, index) => {
+      if (chunkDetail.embedding) {
+        console.log(`   ${index + 1}. ${chunkDetail.chunk.name || chunkDetail.chunk.file} (${chunkDetail.chunk.type})`);
+        console.log(`      File: ${chunkDetail.chunk.file}`);
+        console.log(`      Embedding dimensions: ${chunkDetail.embedding.length}`);
+        console.log(`      First 5 values: [${chunkDetail.embedding.slice(0, 5).join(', ')}...]`);
+      }
+    });
+    console.log('─'.repeat(50));
   }
 
   /**
@@ -138,6 +262,31 @@ export class ASTAnalysisService {
       };
     } catch (error: any) {
       throw new Error(`Failed to analyze file ${filePath}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Load stored analyses for a repository
+   */
+  async loadStoredAnalyses(repoUrl: string): Promise<FileAnalysis[]> {
+    try {
+      return await this.localStorage.loadRepoAnalyses(repoUrl);
+    } catch (error: any) {
+      throw new Error(`Failed to load stored analyses: ${error.message}`);
+    }
+  }
+
+  /**
+   * Embed existing chunks without re-analyzing
+   */
+  async embedExistingChunks(chunks: SimpleChunk[], repoUrl: string): Promise<EmbeddingResult> {
+    try {
+      console.log(`🚀 Starting embedding for ${chunks.length} existing chunks...`);
+      const result = await this.embeddingService.embedRepository(chunks, repoUrl);
+      console.log(`✅ Embedding completed: ${result.embeddedChunks} chunks embedded`);
+      return result;
+    } catch (error: any) {
+      throw new Error(`Failed to embed existing chunks: ${error.message}`);
     }
   }
 
@@ -194,6 +343,17 @@ export class ASTAnalysisService {
       return await this.localStorage.cleanupOldAnalyses(daysOld);
     } catch (error: any) {
       throw new Error(`Failed to cleanup old analyses: ${error.message}`);
+    }
+  }
+
+  /**
+   * Search for similar code chunks
+   */
+  async searchCode(query: string, repository?: string, topK: number = 10): Promise<any[]> {
+    try {
+      return await this.embeddingService.searchSimilar(query, repository, topK);
+    } catch (error: any) {
+      throw new Error(`Search failed: ${error.message}`);
     }
   }
 }

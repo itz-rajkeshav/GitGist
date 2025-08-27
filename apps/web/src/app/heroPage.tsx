@@ -73,13 +73,27 @@ const Heropage = () => {
         .catch((error) => {
           console.error("AST analysis failed:", error);
         });
-      if (status === "authenticated") {
-        router.push(`/dashboard?repo=${encodeURIComponent(repoUrl)}`);
-      } else {
-        signIn();
-      }
     } catch (error) {
       console.error("Error fetching repository data:", error);
+    }
+    fetch("http://localhost:3001/api/repo/re-embed", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ repoUrl }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Re-embedding data:", data);
+      })
+      .catch((error) => {
+        console.error("Error re-embedding data:", error);
+      });
+    if (status === "authenticated") {
+      router.push(`/dashboard?repo=${encodeURIComponent(repoUrl)}`);
+    } else {
+      signIn();
     }
   };
 

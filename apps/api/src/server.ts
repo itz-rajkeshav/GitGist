@@ -4,6 +4,7 @@ import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
 import { ASTAnalysisService } from "./services/astAnalysisService";
+import { chunkAll } from "./services/simpleChunker";
 
 dotenv.config();
 
@@ -121,12 +122,22 @@ export const createServer = (): Express => {
           return res.status(400).json({ error: "Repository URL is required" });
         }
 
-        console.log(`Starting AST analysis for: ${repoUrl}`);
-        const result = await astAnalysisService.analyzeRepository(repoUrl);
+        console.log(`🚀 Starting AST analysis with chunking and embedding for: ${repoUrl}`);
+        
+        // Enable both chunking and embedding by default
+        const result = await astAnalysisService.analyzeRepository(
+          repoUrl, 
+          undefined, // no progress callback
+          true,      // enable chunking
+          true       // enable embedding
+        );
+
+        console.log(`✅ Analysis complete! Generated ${result.chunks?.length || 0} chunks and embedded ${result.embeddingResult?.embeddedChunks || 0} items`);
 
         return res.status(200).json({
           success: true,
-          data: result
+          data: result,
+          message: `Repository analyzed successfully! Generated ${result.chunks?.length || 0} chunks and embedded ${result.embeddingResult?.embeddedChunks || 0} items.`
         });
       } catch (error: any) {
         console.error("AST Analysis error:", error);
@@ -180,6 +191,78 @@ export const createServer = (): Express => {
           data: stats
         });
       } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .post("/api/repo/re-embed", async (req, res) => {
+      try {
+        const { repoUrl } = req.body;
+        if (!repoUrl) {
+          return res.status(400).json({ error: "Repository URL is required" });
+        }
+
+        console.log(`🔄 Re-embedding existing AST data for: ${repoUrl}`);
+        
+        // Load existing analyses and re-embed them
+        const analyses = await astAnalysisService.loadStoredAnalyses(repoUrl);
+        if (!analyses || analyses.length === 0) {
+          return res.status(404).json({ error: "No stored analyses found for this repository" });
+        }
+
+        // Generate chunks from existing analyses
+        const chunks = chunkAll(analyses, { maxSize: 500, combine: true });
+        console.log(`✅ Generated ${chunks.length} chunks from existing analyses`);
+
+        // Embed the chunks
+        const embeddingResult = await astAnalysisService.embedExistingChunks(chunks, repoUrl);
+        
+        console.log(`✅ Re-embedding complete! Embedded ${embeddingResult.embeddedChunks} chunks`);
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            repository: repoUrl,
+            totalChunks: chunks.length,
+            embeddingResult
+          },
+          message: `Re-embedding completed successfully! Embedded ${embeddingResult.embeddedChunks} chunks.`
+        });
+      } catch (error: any) {
+        console.error("Re-embedding error:", error);
+        return res.status(500).json({ error: error.message });
+      }
+    })
+    .get("/api/repo/chunks/:repoUrl", async (req, res) => {
+      try {
+        const repoUrl = decodeURIComponent(req.params.repoUrl);
+        
+        // Load existing analyses
+        const analyses = await astAnalysisService.loadStoredAnalyses(repoUrl);
+        if (!analyses || analyses.length === 0) {
+          return res.status(404).json({ error: "No stored analyses found for this repository" });
+        }
+
+        // Generate chunks from existing analyses
+        const chunks = chunkAll(analyses, { maxSize: 500, combine: true });
+        
+        return res.status(200).json({
+          success: true,
+          data: {
+            repository: repoUrl,
+            totalAnalyses: analyses.length,
+            totalChunks: chunks.length,
+            chunks: chunks.map(chunk => ({
+              id: chunk.id,
+              type: chunk.type,
+              name: chunk.name,
+              file: chunk.file,
+              text: chunk.text,
+              size: chunk.text.length
+            }))
+          }
+        });
+      } catch (error: any) {
+        console.error("Get chunks error:", error);
         return res.status(500).json({ error: error.message });
       }
     });

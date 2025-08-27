@@ -206,23 +206,78 @@ export class LocalStorage {
   }
 
   /**
+   * Find the latest analysis folder for a repository
+   */
+  private async findLatestAnalysisFolder(repoUrl: string): Promise<string> {
+    try {
+      const sanitizedName = this.sanitizeRepoName(repoUrl);
+      const repoDir = path.join(this.config.baseDir, sanitizedName);
+      
+      if (!(await fs.pathExists(repoDir))) {
+        throw new Error('Repository directory not found');
+      }
+      
+      const entries = await fs.readdir(repoDir);
+      let latestFolder = '';
+      let latestTime = new Date(0);
+      
+      for (const entry of entries) {
+        const entryPath = path.join(repoDir, entry);
+        const stat = await fs.stat(entryPath);
+        
+        if (stat.isDirectory()) {
+          // Use file modification time instead of parsing folder names
+          if (stat.mtime > latestTime) {
+            latestTime = stat.mtime;
+            latestFolder = entryPath;
+          }
+        }
+      }
+      
+      if (!latestFolder) {
+        throw new Error('No analysis folders found');
+      }
+      
+      return latestFolder;
+    } catch (error: any) {
+      throw new Error(`Failed to find latest analysis folder: ${error.message}`);
+    }
+  }
+
+  /**
    * Load all analyses for a repository
    */
   async loadRepoAnalyses(repoUrl: string): Promise<FileAnalysis[]> {
     try {
-      const repoDir = this.getRepoStorageDir(repoUrl);
-      const indexPath = path.join(repoDir, 'index.json');
+      const latestFolder = await this.findLatestAnalysisFolder(repoUrl);
       
-      if (!(await fs.pathExists(indexPath))) {
-        throw new Error('No analysis index found for this repository');
-      }
-      
-      const index = await fs.readJson(indexPath);
+      // Scan for all analysis files recursively
       const analyses: FileAnalysis[] = [];
       
-      for (const analysisFile of index.analysisFiles) {
-        const analysis = await this.loadFileAnalysis(analysisFile);
-        analyses.push(analysis);
+      const scanForAnalyses = async (dir: string): Promise<void> => {
+        const entries = await fs.readdir(dir);
+        
+        for (const entry of entries) {
+          const entryPath = path.join(dir, entry);
+          const stat = await fs.stat(entryPath);
+          
+          if (stat.isDirectory()) {
+            await scanForAnalyses(entryPath);
+          } else if (entry.endsWith('_analysis.json')) {
+            try {
+              const analysis = await this.loadFileAnalysis(entryPath);
+              analyses.push(analysis);
+            } catch (error: any) {
+              console.warn(`Failed to load analysis file ${entryPath}: ${error.message}`);
+            }
+          }
+        }
+      };
+      
+      await scanForAnalyses(latestFolder);
+      
+      if (analyses.length === 0) {
+        throw new Error('No analysis files found in the repository');
       }
       
       return analyses;
