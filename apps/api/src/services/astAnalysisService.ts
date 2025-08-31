@@ -1,14 +1,28 @@
-import { ASTParser, FileAnalysis } from './astParser';
-import { GitHubFileFetcher, GitHubFile } from './githubFileFetcher';
+import { ASTParser } from './astParser';
+import { GitHubFileFetcher } from './githubFileFetcher';
 import { LocalStorage } from './localStorage';
 import { chunkAll, SimpleChunk } from './simpleChunker';
-import { EmbeddingService, EmbeddingResult } from './embeddingService';
 
 export interface AnalysisProgress {
   totalFiles: number;
   processedFiles: number;
   currentFile: string;
   errors: string[];
+}
+
+export interface FileAnalysis {
+  file: string;
+  ast_summary: any;
+}
+
+export interface RepositorySummary {
+  totalFiles: number;
+  totalFunctions: number;
+  totalClasses: number;
+  totalImports: number;
+  totalExports: number;
+  totalVariables: number;
+  fileTypes: string[];
 }
 
 export interface AnalysisResult {
@@ -21,27 +35,24 @@ export interface AnalysisResult {
   errors: string[];
   duration: number;
   chunks?: SimpleChunk[];
-  embeddingResult?: EmbeddingResult;
 }
 
 export class ASTAnalysisService {
   private astParser: ASTParser;
   private fileFetcher: GitHubFileFetcher;
   private localStorage: LocalStorage;
-  private embeddingService: EmbeddingService;
 
   constructor(githubToken?: string, storageConfig?: any) {
     this.astParser = new ASTParser();
     this.fileFetcher = new GitHubFileFetcher(githubToken);
     this.localStorage = new LocalStorage(storageConfig);
-    this.embeddingService = new EmbeddingService();
   }
 
   async analyzeRepository(
     repoUrl: string, 
     progressCallback?: (progress: AnalysisProgress) => void,
     enableChunking: boolean = true,
-    enableEmbedding: boolean = true
+    enableEmbedding: boolean = false
   ): Promise<AnalysisResult> {
     const startTime = Date.now();
     const errors: string[] = [];
@@ -112,29 +123,9 @@ export class ASTAnalysisService {
           
           // Log detailed chunk information
           this.logChunks(chunks);
-          
-          // Log chunk statistics by type
           this.logChunkStatistics(chunks);
         } catch (error: any) {
           const errorMsg = `Chunking failed: ${error.message}`;
-          console.error(errorMsg);
-          errors.push(errorMsg);
-        }
-      }
-      
-      // Generate embeddings if enabled
-      let embeddingResult: EmbeddingResult | undefined;
-      if (enableEmbedding && chunks) {
-        try {
-          console.log(`\n🚀 Starting FREE embedding process...`);
-          console.log(`📊 Preparing to embed ${chunks.length} chunks...`);
-          
-          embeddingResult = await this.embeddingService.embedRepository(chunks, repoUrl);
-          
-          // Log detailed embedding results
-          this.logEmbeddingResults(embeddingResult);
-        } catch (error: any) {
-          const errorMsg = `Embedding failed: ${error.message}`;
           console.error(errorMsg);
           errors.push(errorMsg);
         }
@@ -151,8 +142,7 @@ export class ASTAnalysisService {
         storagePath: savedFiles[savedFiles.length - 1], // Index file path
         errors,
         duration,
-        chunks,
-        embeddingResult
+        chunks
       };
       
       console.log(`Analysis completed in ${duration}ms`);
@@ -211,38 +201,6 @@ export class ASTAnalysisService {
   }
 
   /**
-   * Log detailed embedding results
-   */
-  private logEmbeddingResults(embeddingResult: EmbeddingResult): void {
-    console.log('\n🎉 Embedding Results:');
-    console.log('─'.repeat(50));
-    console.log(`   Total chunks: ${embeddingResult.totalChunks}`);
-    console.log(`   Successfully embedded: ${embeddingResult.embeddedChunks}`);
-    console.log(`   Failed chunks: ${embeddingResult.failedChunks}`);
-    console.log(`   Errors: ${embeddingResult.errors.length}`);
-    
-    if (embeddingResult.errors.length > 0) {
-      console.log('\n❌ Embedding Errors:');
-      embeddingResult.errors.forEach((error, index) => {
-        console.log(`   ${index + 1}. ${error}`);
-      });
-    }
-    
-    // Log sample embedded chunks
-    console.log('\n🔍 Sample Embedded Chunks:');
-    const sampleChunks = embeddingResult.chunkDetails.slice(0, 3);
-    sampleChunks.forEach((chunkDetail, index) => {
-      if (chunkDetail.embedding) {
-        console.log(`   ${index + 1}. ${chunkDetail.chunk.name || chunkDetail.chunk.file} (${chunkDetail.chunk.type})`);
-        console.log(`      File: ${chunkDetail.chunk.file}`);
-        console.log(`      Embedding dimensions: ${chunkDetail.embedding.length}`);
-        console.log(`      First 5 values: [${chunkDetail.embedding.slice(0, 5).join(', ')}...]`);
-      }
-    });
-    console.log('─'.repeat(50));
-  }
-
-  /**
    * Get analysis for a specific file
    */
   async analyzeFile(repoUrl: string, filePath: string): Promise<FileAnalysis> {
@@ -277,20 +235,6 @@ export class ASTAnalysisService {
   }
 
   /**
-   * Embed existing chunks without re-analyzing
-   */
-  async embedExistingChunks(chunks: SimpleChunk[], repoUrl: string): Promise<EmbeddingResult> {
-    try {
-      console.log(`🚀 Starting embedding for ${chunks.length} existing chunks...`);
-      const result = await this.embeddingService.embedRepository(chunks, repoUrl);
-      console.log(`✅ Embedding completed: ${result.embeddedChunks} chunks embedded`);
-      return result;
-    } catch (error: any) {
-      throw new Error(`Failed to embed existing chunks: ${error.message}`);
-    }
-  }
-
-  /**
    * Get repository statistics without full analysis
    */
   async getRepositoryStats(repoUrl: string): Promise<any> {
@@ -309,7 +253,7 @@ export class ASTAnalysisService {
     try {
       return await this.localStorage.loadRepoAnalyses(repoUrl);
     } catch (error: any) {
-      throw new Error(`Failed to load stored analysis: ${error.message}`);
+      throw new Error(`Failed to load stored analyses: ${error.message}`);
     }
   }
 
@@ -343,17 +287,6 @@ export class ASTAnalysisService {
       return await this.localStorage.cleanupOldAnalyses(daysOld);
     } catch (error: any) {
       throw new Error(`Failed to cleanup old analyses: ${error.message}`);
-    }
-  }
-
-  /**
-   * Search for similar code chunks
-   */
-  async searchCode(query: string, repository?: string, topK: number = 10): Promise<any[]> {
-    try {
-      return await this.embeddingService.searchSimilar(query, repository, topK);
-    } catch (error: any) {
-      throw new Error(`Search failed: ${error.message}`);
     }
   }
 }
