@@ -1,3 +1,4 @@
+![WakaTime Badge](https://wakatime.com/badge/user/013d3423-ddd5-4e35-bed8-5bb7be56f90b/project/a0cc1c66-b0db-4255-8c83-49b5e09552fa.svg)
 # Turborepo Docker starter
 
 This is a community-maintained example. If you experience a problem, please submit a pull request with a fix. GitHub Issues will be closed.
