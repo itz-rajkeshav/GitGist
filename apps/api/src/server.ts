@@ -5,7 +5,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { ASTAnalysisService } from "./services/astAnalysisService";
 import { chunkAll } from "./services/simpleChunker";
-import { EmbeddingProcess } from "./services/embedding";
+// Removed embedding process import
 
 dotenv.config();
 
@@ -98,8 +98,8 @@ export const createServer = (): Express => {
   app
     .disable("x-powered-by")
     .use(morgan("dev"))
-    .use(urlencoded({ extended: true }))
-    .use(json())
+    .use(urlencoded({ extended: true, limit: "10mb" }))
+    .use(json({ limit: "10mb" }))
     .use(cors())
     .get("/status", (_, res) => {
       return res.json({ ok: true });
@@ -162,45 +162,6 @@ export const createServer = (): Express => {
         return res.status(500).json({ error: error.message });
       }
     })
-    // .post("/api/repo/embed", async (req, res) => {
-    //   try {
-    //     const { repoUrl, chunks, instruction } = req.body;
-        
-    //     if (!repoUrl) {
-    //       return res.status(400).json({ error: "Repository URL is required" });
-    //     }
-        
-    //     if (!chunks || !Array.isArray(chunks) || chunks.length === 0) {
-    //       return res.status(400).json({ error: "Chunks array is required and must not be empty" });
-    //     }
-
-    //     console.log(`🚀 Starting embedding process for: ${repoUrl} with ${chunks.length} chunks`);
-        
-    //     // Create embedding process instance
-    //     const embeddingProcess = new EmbeddingProcess();
-        
-    //     // Process embeddings and store in vector database
-    //     await embeddingProcess.processEmbedd(chunks, instruction);
-        
-    //     console.log(`✅ Embedding process complete for ${chunks.length} chunks`);
-        
-    //     return res.status(200).json({
-    //       success: true,
-    //       message: `Successfully processed ${chunks.length} chunks and stored embeddings in vector database`,
-    //       chunksProcessed: chunks.length
-    //     });
-        
-    //   } catch (error: any) {
-    //     console.error("Embedding error:", error);
-    //     return res.status(500).json({ 
-    //       error: `Failed to process embeddings: ${error.message}` 
-    //     });
-    //   }
-    // })
-    .post("api/repo/embed",async(req,res)=>{
-      return res.json("working");      
-    })
-
-
+    
   return app;
 };
