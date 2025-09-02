@@ -52,27 +52,91 @@ const Heropage = () => {
       dispatch(setCommit(commits));
       dispatch(setFolderStructure(folderStructure));
 
-      fetch("http://localhost:3001/api/repo/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ repoUrl }),
-      })
-        .then((response) => response.json())
-        .then((astData) => {
-          // Store AST repo data in localStorage for the dashboard
-          localStorage.setItem(
-            "astAnalysisResult",
-            JSON.stringify(astData.data)
-          );
-          console.log(astData.data);
+      // First, analyze the repository to get chunks
+      const analysisResponse = await fetch(
+        "http://localhost:3001/api/repo/analyze",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ repoUrl }),
+        }
+      );
 
-          localStorage.setItem("currentRepoUrl", repoUrl);
-        })
-        .catch((error) => {
-          console.error("AST analysis failed:", error);
-        });
+      if (!analysisResponse.ok) {
+        throw new Error(
+          `AST analysis failed! status: ${analysisResponse.status}`
+        );
+      }
+
+      const astData = await analysisResponse.json();
+      console.log("AST analysis data:", astData.data);
+
+      // Store AST repo data in localStorage for the dashboard
+      localStorage.setItem("astAnalysisResult", JSON.stringify(astData.data));
+      localStorage.setItem("currentRepoUrl", repoUrl);
+
+      // If chunks were generated, process embeddings
+      if (astData.data?.chunks && astData.data.chunks.length > 0) {
+        console.log(
+          `📊 Generated ${astData.data.chunks.length} chunks, now processing embeddings...`
+        );
+
+        try {
+          const embeddingResponse = await fetch(
+            "http://localhost:3001/api/repo/embed",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                repoUrl,
+                chunks: astData.data.chunks,
+                instruction:
+                  "Represent the code chunk for semantic search and retrieval",
+              }),
+            }
+          );
+
+          if (!embeddingResponse.ok) {
+            console.warn(
+              "Embedding failed, but analysis was successful:",
+              embeddingResponse.status
+            );
+          } else {
+            const embeddingResult = await embeddingResponse.json();
+            console.log("Embedding result:", embeddingResult);
+
+            // Store embedding status in localStorage
+            localStorage.setItem(
+              "embeddingStatus",
+              JSON.stringify({
+                success: true,
+                chunksProcessed: astData.data.chunks.length,
+                timestamp: new Date().toISOString(),
+              })
+            );
+          }
+        } catch (embeddingError: any) {
+          console.warn(
+            "Embedding failed, but analysis was successful:",
+            embeddingError
+          );
+          // Store embedding failure status
+          localStorage.setItem(
+            "embeddingStatus",
+            JSON.stringify({
+              success: false,
+              error: embeddingError.message || "Unknown error",
+              timestamp: new Date().toISOString(),
+            })
+          );
+        }
+      } else {
+        console.log("No chunks generated, skipping embedding process");
+      }
     } catch (error) {
       console.error("Error fetching repository data:", error);
     }

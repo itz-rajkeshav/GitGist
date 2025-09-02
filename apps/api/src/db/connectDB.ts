@@ -1,28 +1,41 @@
-import { QdrantClient } from '@qdrant/qdrant-js';
+let QdrantClient: any;
+
+// Initialize QdrantClient dynamically
+async function getQdrantClient() {
+    if (!QdrantClient) {
+        const module = await import('@qdrant/qdrant-js');
+        QdrantClient = module.QdrantClient;
+    }
+    return QdrantClient;
+}
+
 import dotenv from 'dotenv';
 import { ChunkDetail, EmbeddingResult } from '../services/embeddingService';
 
 dotenv.config();
 
 export class ConnectDB {
-    private client: QdrantClient;
+    private client: any;
     private collectionName: string;
     
     constructor(collectionName: string = "repo_chunks") {
         this.collectionName = collectionName;
-        this.client = new QdrantClient({
-            url: process.env.QDRANT_URL,
-            apiKey: process.env.QDRANT_API_KEY
-        });
+        this.client = null;
     }
     
     async initialize(): Promise<void> {
         try {
+            const QdrantClientClass = await getQdrantClient();
+            this.client = new QdrantClientClass({
+                url: process.env.QDRANT_URL,
+                apiKey: process.env.QDRANT_API_KEY
+            });
+            
             const collectionExists = await this.client.collectionExists(this.collectionName);
             if (!collectionExists) {
                 await this.client.createCollection(this.collectionName, {
                     vectors: {
-                        size: 1536,
+                        size: 768,
                         distance: "Cosine"
                     }
                 });
@@ -35,6 +48,9 @@ export class ConnectDB {
     
     async storeEmbedding(embedding: EmbeddingResult[], chunks: ChunkDetail[]): Promise<void> {
         try {
+            if (!this.client) {
+                await this.initialize();
+            }
             const points = embedding.map((embedding, index) => ({
                 id: embedding.chunk_id,
                 vector: embedding.vector,
