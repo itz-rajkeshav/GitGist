@@ -1,13 +1,6 @@
 "use client";
 import React from "react";
-import {
-  Folder,
-  Cpu,
-  MessageCircle,
-  Settings,
-  LogOut,
-  Home,
-} from "lucide-react";
+import { Folder, Cpu, LogOut, Home } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 interface SidebarProps {
@@ -37,8 +30,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     { icon: Home, label: "Dashboard", href: "/dashboard" },
     { icon: Folder, label: "Folder Structure", href: "/folderStr" },
     { icon: Cpu, label: "Tech Stack", href: "/techStack" },
-    { icon: MessageCircle, label: "AI Q&A", href: "/ai" },
-    { icon: Settings, label: "Settings", href: "#" },
   ];
 
   return (

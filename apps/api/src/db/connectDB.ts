@@ -1,6 +1,3 @@
-// Removed embedding-specific types
-// Use dynamic import for ESM-only Qdrant client
-
 export class ConnectDB {
     private client: any;
     private collectionName: string;

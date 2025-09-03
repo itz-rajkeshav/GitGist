@@ -165,7 +165,7 @@ const Heropage = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16 w-full max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 w-full max-w-4xl">
             <div className="text-center group">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/25">
                 <span className="text-white font-bold text-xl">1</span>
@@ -190,15 +190,6 @@ const Heropage = () => {
               </div>
               <h3 className="text-lg font-bold mb-2 text-pink-200">
                 Quick insights
-              </h3>
-            </div>
-
-            <div className="text-center group">
-              <div className="w-16 h-16 bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-emerald-500/25">
-                <span className="text-white font-bold text-xl">4</span>
-              </div>
-              <h3 className="text-lg font-bold mb-2 text-emerald-200">
-                Q&A regarding the repository
               </h3>
             </div>
           </div>

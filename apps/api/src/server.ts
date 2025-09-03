@@ -144,24 +144,6 @@ export const createServer = (): Express => {
         console.error("AST Analysis error:", error);
         return res.status(500).json({ error: error.message });
       }
-    })
-
-    .post("/api/repo/analyze-file", async (req, res) => {
-      try {
-        const { repoUrl, filePath } = req.body;
-        if (!repoUrl || !filePath) {
-          return res.status(400).json({ error: "Repository URL and file path are required" });
-        }
-
-        const result = await astAnalysisService.analyzeFile(repoUrl, filePath);
-        return res.status(200).json({
-          success: true,
-          data: result
-        });
-      } catch (error: any) {
-        return res.status(500).json({ error: error.message });
-      }
-    })
-    
+    })    
   return app;
 };
