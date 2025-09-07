@@ -23,117 +23,110 @@ export interface RepoInfo {
   branch?: string;
 }
 
-export class GitHubFileFetcher {
-  private githubToken?: string;
-  private supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
+const supportedExtensions = ['.js', '.jsx', '.ts', '.tsx'];
 
-  constructor(githubToken?: string) {
-    this.githubToken = githubToken;
+export function parseRepoUrl(repoUrl: string): RepoInfo {
+  const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) {
+    throw new Error('Invalid GitHub repository URL');
   }
 
-  parseRepoUrl(repoUrl: string): RepoInfo {
-    const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
-    if (!match) {
-      throw new Error('Invalid GitHub repository URL');
+  const [, owner, repo] = match;
+  return { owner, repo: repo.replace('.git', '') };
+}
+
+export async function getAllFiles(repoInfo: RepoInfo, githubToken?: string): Promise<any[]> {
+  try {
+    const octokit = await getOctokit(githubToken);
+    const { owner, repo, branch } = repoInfo;
+    
+    const { data: repoData } = await octokit.request(`GET /repos/${owner}/${repo}`);
+    const targetBranch = branch || repoData.default_branch;
+
+    const { data: tree } = await octokit.request(
+      `GET /repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`
+    );
+
+    return tree.tree.filter((item: any) =>
+      item.type === 'blob' &&
+      isSupportedFile(item.path || '')
+    );
+  } catch (error: any) {
+    throw new Error(`Failed to fetch repository files: ${error.message}`);
+  }
+}
+
+export async function getFileContent(repoInfo: RepoInfo, filePath: string, githubToken?: string): Promise<GitHubFile> {
+  try {
+    const octokit = await getOctokit(githubToken);
+    const { owner, repo } = repoInfo;
+    
+    const { data } = await octokit.request(
+      `GET /repos/${owner}/${repo}/contents/${filePath}`
+    );
+
+    if (Array.isArray(data)) {
+      throw new Error(`Path ${filePath} is a directory, not a file`);
     }
 
-    const [, owner, repo] = match;
-    return { owner, repo: repo.replace('.git', '') };
-  }
+    if (!('content' in data)) {
+      throw new Error(`Unable to fetch content for ${filePath}`);
+    }
 
-  async getAllFiles(repoInfo: RepoInfo): Promise<any[]> {
+    const content = Buffer.from(data.content, 'base64').toString('utf-8');
+
+    return {
+      path: filePath,
+      content,
+      size: data.size,
+      sha: data.sha
+    };
+  } catch (error: any) {
+    throw new Error(`Failed to fetch file ${filePath}: ${error.message}`);
+  }
+}
+
+export async function getMultipleFileContents(repoInfo: RepoInfo, filePaths: string[], githubToken?: string): Promise<GitHubFile[]> {
+  const results: GitHubFile[] = [];
+  const batchSize = 10;
+
+  for (let i = 0; i < filePaths.length; i += batchSize) {
+    const batch = filePaths.slice(i, i + batchSize);
+    const batchPromises = batch.map(filePath => getFileContent(repoInfo, filePath, githubToken));
+    
     try {
-      const octokit = await getOctokit(this.githubToken);
-      const { owner, repo, branch } = repoInfo;
-      
-      const { data: repoData } = await octokit.request(`GET /repos/${owner}/${repo}`);
-      const targetBranch = branch || repoData.default_branch;
-
-      const { data: tree } = await octokit.request(
-        `GET /repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`
-      );
-
-      return tree.tree.filter((item: any) =>
-        item.type === 'blob' &&
-        this.isSupportedFile(item.path || '')
-      );
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     } catch (error: any) {
-      throw new Error(`Failed to fetch repository files: ${error.message}`);
+      console.warn(`Batch ${i / batchSize + 1} failed: ${error.message}`);
     }
   }
 
-  async getFileContent(repoInfo: RepoInfo, filePath: string): Promise<GitHubFile> {
-    try {
-      const octokit = await getOctokit(this.githubToken);
-      const { owner, repo } = repoInfo;
-      
-      const { data } = await octokit.request(
-        `GET /repos/${owner}/${repo}/contents/${filePath}`
-      );
+  return results;
+}
 
-      if (Array.isArray(data)) {
-        throw new Error(`Path ${filePath} is a directory, not a file`);
-      }
+export async function getAllSupportedFilesWithContent(repoUrl: string, githubToken?: string): Promise<GitHubFile[]> {
+  try {
+    const repoInfo = parseRepoUrl(repoUrl);
+    
+    const allFiles = await getAllFiles(repoInfo, githubToken);
+    
+    const supportedFiles = allFiles.filter(file => 
+      isSupportedFile(file.path || '')
+    );
 
-      if (!('content' in data)) {
-        throw new Error(`Unable to fetch content for ${filePath}`);
-      }
+    console.log(`Found ${supportedFiles.length} supported files in ${repoInfo.owner}/${repoInfo.repo}`);
 
-      const content = Buffer.from(data.content, 'base64').toString('utf-8');
+    const filePaths = supportedFiles.map(file => file.path!);
+    const filesWithContent = await getMultipleFileContents(repoInfo, filePaths, githubToken);
 
-      return {
-        path: filePath,
-        content,
-        size: data.size,
-        sha: data.sha
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to fetch file ${filePath}: ${error.message}`);
-    }
+    return filesWithContent;
+  } catch (error: any) {
+    throw new Error(`Failed to fetch repository files: ${error.message}`);
   }
+}
 
-  async getMultipleFileContents(repoInfo: RepoInfo, filePaths: string[]): Promise<GitHubFile[]> {
-    const results: GitHubFile[] = [];
-    const batchSize = 10;
-
-    for (let i = 0; i < filePaths.length; i += batchSize) {
-      const batch = filePaths.slice(i, i + batchSize);
-      const batchPromises = batch.map(filePath => this.getFileContent(repoInfo, filePath));
-      
-      try {
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
-      } catch (error: any) {
-        console.warn(`Batch ${i / batchSize + 1} failed: ${error.message}`);
-      }
-    }
-
-    return results;
-  }
-
-  async getAllSupportedFilesWithContent(repoUrl: string): Promise<GitHubFile[]> {
-    try {
-      const repoInfo = this.parseRepoUrl(repoUrl);
-      
-      const allFiles = await this.getAllFiles(repoInfo);
-      
-      const supportedFiles = allFiles.filter(file => 
-        this.isSupportedFile(file.path || '')
-      );
-
-      console.log(`Found ${supportedFiles.length} supported files in ${repoInfo.owner}/${repoInfo.repo}`);
-
-      const filePaths = supportedFiles.map(file => file.path!);
-      const filesWithContent = await this.getMultipleFileContents(repoInfo, filePaths);
-
-      return filesWithContent;
-    } catch (error: any) {
-      throw new Error(`Failed to fetch repository files: ${error.message}`);
-    }
-  }
-
-  private isSupportedFile(filePath: string): boolean {
-    const extension = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
-    return this.supportedExtensions.includes(extension);
-  }
+function isSupportedFile(filePath: string): boolean {
+  const extension = filePath.toLowerCase().substring(filePath.lastIndexOf('.'));
+  return supportedExtensions.includes(extension);
 }

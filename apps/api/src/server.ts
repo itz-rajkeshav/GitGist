@@ -3,7 +3,7 @@ import express, { type Express } from "express";
 import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
-import { ASTAnalysisService } from "./services/astAnalysisService";
+import { analyzeRepository } from "./services/astAnalysisService";
 
 dotenv.config();
 
@@ -18,8 +18,6 @@ async function initializeOctokit() {
   }
   return octokit;
 }
-
-const astAnalysisService = new ASTAnalysisService(process.env.GITHUB_TOKEN);
 
 async function getRepoDetail(repoUrl: string) {
   try {
@@ -120,18 +118,19 @@ export const createServer = (): Express => {
 
         console.log(`🚀 Starting AST analysis for: ${repoUrl}`);
         
-        const result = await astAnalysisService.analyzeRepository(
+        const result = await analyzeRepository(
           repoUrl, 
+          process.env.GITHUB_TOKEN,
           undefined,
-          true
+          undefined
         );
 
-        console.log(`✅ Analysis complete! Generated ${result.chunks?.length || 0} chunks`);
+        console.log(`✅ Analysis complete!`);
 
         return res.status(200).json({
           success: true,
           data: result,
-          message: `Repository analyzed successfully! Generated ${result.chunks?.length || 0} chunks.`
+          message: `Repository analyzed successfully!`
         });
       } catch (error: any) {
         console.error("AST Analysis error:", error);
