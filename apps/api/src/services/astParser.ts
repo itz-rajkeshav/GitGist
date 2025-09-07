@@ -45,11 +45,9 @@ export class ASTParser {
 
   parseCode(code: string, filename: string): ASTSummary {
     try {
-      // Determine if it's TypeScript or JavaScript
       const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx');
       const isJSX = filename.endsWith('.jsx') || filename.endsWith('.tsx');
 
-      // Parse the code into an AST
       const ast = parse(code, {
         sourceType: 'module',
         allowImportExportEverywhere: true,
@@ -84,10 +82,8 @@ export class ASTParser {
       const classes: string[] = [];
       const variables: string[] = [];
 
-      // Traverse the AST and extract information
       const self = this;
       traverse(ast, {
-        // Handle function declarations
         FunctionDeclaration(path) {
           const node = path.node;
           if (node.id) {
@@ -99,7 +95,6 @@ export class ASTParser {
               isExported: self.isExported(path)
             };
 
-            // Find function calls within this function
             path.traverse({
               CallExpression(callPath) {
                 const callee = callPath.node.callee;
@@ -115,7 +110,6 @@ export class ASTParser {
           }
         },
 
-        // Handle arrow functions and function expressions
         VariableDeclarator(path) {
           const node = path.node;
           if (t.isIdentifier(node.id) && 
@@ -128,7 +122,6 @@ export class ASTParser {
               isExported: self.isExported(path)
             };
 
-            // Find function calls within this function
             path.traverse({
               CallExpression(callPath) {
                 const callee = callPath.node.callee;
@@ -146,7 +139,6 @@ export class ASTParser {
           }
         },
 
-        // Handle imports
         ImportDeclaration(path) {
           const node = path.node;
           const importInfo: ImportInfo = {
@@ -171,7 +163,6 @@ export class ASTParser {
           imports.push(importInfo);
         },
 
-        // Handle exports
         ExportNamedDeclaration(path) {
           const node = path.node;
           if (node.declaration) {
@@ -215,7 +206,6 @@ export class ASTParser {
           }
         },
 
-        // Handle class declarations
         ClassDeclaration(path) {
           const node = path.node;
           if (node.id) {
@@ -246,13 +236,9 @@ export class ASTParser {
 
   private extractParams(params: any[]): string[] {
     return params.map(param => {
-      if (t.isIdentifier(param)) {
-        return param.name;
-      } else if (t.isAssignmentPattern(param) && t.isIdentifier(param.left)) {
-        return param.left.name;
-      } else if (t.isRestElement(param) && t.isIdentifier(param.argument)) {
-        return `...${param.argument.name}`;
-      }
+      if (t.isIdentifier(param)) return param.name;
+      if (t.isAssignmentPattern(param) && t.isIdentifier(param.left)) return param.left.name;
+      if (t.isRestElement(param) && t.isIdentifier(param.argument)) return `...${param.argument.name}`;
       return 'unknown';
     });
   }

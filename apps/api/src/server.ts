@@ -4,12 +4,9 @@ import morgan from "morgan";
 import cors from "cors";
 import dotenv from "dotenv";
 import { ASTAnalysisService } from "./services/astAnalysisService";
-import { chunkAll } from "./services/simpleChunker";
-// Removed embedding process import
 
 dotenv.config();
 
-// Dynamic import for Octokit to resolve module compatibility
 let octokit: any;
 
 async function initializeOctokit() {
@@ -47,15 +44,12 @@ async function getRepoDetail(repoUrl: string) {
       const {data: packageJsonData} = await octokitInstance.request(`GET /repos/${owner}/${repo}/contents/package.json`);
 
       if ('content' in packageJsonData) {
-        // Decode base64 content
         const packageJsonContent = Buffer.from(packageJsonData.content, 'base64').toString('utf-8');
         const packageJson = JSON.parse(packageJsonContent);
 
-        // Extract dependencies and devDependencies
         const deps = packageJson.dependencies || {};
         const devDeps = packageJson.devDependencies || {};
 
-        // Convert to array format with name and version
         dependencies = [
           ...Object.entries(deps).map(([name, version]) => ({
             name,
@@ -95,6 +89,7 @@ async function getRepoDetail(repoUrl: string) {
 
 export const createServer = (): Express => {
   const app = express();
+  
   app
     .disable("x-powered-by")
     .use(morgan("dev"))
@@ -123,14 +118,12 @@ export const createServer = (): Express => {
           return res.status(400).json({ error: "Repository URL is required" });
         }
 
-        console.log(`🚀 Starting AST analysis with chunking for: ${repoUrl}`);
+        console.log(`🚀 Starting AST analysis for: ${repoUrl}`);
         
-        // Enable chunking by default
         const result = await astAnalysisService.analyzeRepository(
           repoUrl, 
-          undefined, // no progress callback
-          true,      // enable chunking
-          false      // disable embedding
+          undefined,
+          true
         );
 
         console.log(`✅ Analysis complete! Generated ${result.chunks?.length || 0} chunks`);
@@ -144,6 +137,7 @@ export const createServer = (): Express => {
         console.error("AST Analysis error:", error);
         return res.status(500).json({ error: error.message });
       }
-    })    
+    });
+    
   return app;
 };

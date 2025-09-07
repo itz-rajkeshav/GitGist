@@ -1,6 +1,5 @@
 import { ASTSummary, FileAnalysis } from './astParser';
 
-// Simple chunk interface
 export interface SimpleChunk {
   id: string;
   text: string;
@@ -9,27 +8,21 @@ export interface SimpleChunk {
   name?: string;
 }
 
-// Simple chunking options
 export interface ChunkOptions {
-  maxSize?: number;  // max characters per chunk
-  combine?: boolean;  // combine small chunks
+  maxSize?: number;
+  combine?: boolean;
 }
 
-// Default options
 const DEFAULT_OPTIONS: Required<ChunkOptions> = {
   maxSize: 500,
   combine: true
 };
 
-/**
- * Simple chunking function - easy to use
- */
 export function chunk(analysis: FileAnalysis, options?: ChunkOptions): SimpleChunk[] {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const chunks: SimpleChunk[] = [];
   const { file, ast_summary } = analysis;
   
-  // Functions
   for (const fn of ast_summary.functions) {
     chunks.push({
       id: `${file}::${fn.name}`,
@@ -40,7 +33,6 @@ export function chunk(analysis: FileAnalysis, options?: ChunkOptions): SimpleChu
     });
   }
   
-  // Imports
   if (ast_summary.imports.length > 0) {
     const importText = ast_summary.imports
       .map(imp => `from ${imp.source}: ${imp.imports.join(', ')}`)
@@ -48,7 +40,6 @@ export function chunk(analysis: FileAnalysis, options?: ChunkOptions): SimpleChu
     chunks.push({ id: `${file}::imports`, text: `Imports:\n${importText}`, type: 'import', file });
   }
   
-  // Exports
   if (ast_summary.exports.length > 0) {
     const exportText = ast_summary.exports
       .map(exp => `${exp.type}: ${exp.name}${exp.isDefault ? ' (default)' : ''}`)
@@ -56,17 +47,14 @@ export function chunk(analysis: FileAnalysis, options?: ChunkOptions): SimpleChu
     chunks.push({ id: `${file}::exports`, text: `Exports:\n${exportText}`, type: 'export', file });
   }
   
-  // Classes
   for (const className of ast_summary.classes) {
     chunks.push({ id: `${file}::${className}`, text: `Class: ${className}`, type: 'class', file, name: className });
   }
   
-  // Variables
   if (ast_summary.variables.length > 0) {
     chunks.push({ id: `${file}::variables`, text: `Variables: ${ast_summary.variables.join(', ')}`, type: 'variable', file });
   }
   
-  // Summary when nothing else exists
   if (chunks.length === 0) {
     chunks.push({
       id: `${file}::summary`,
@@ -79,16 +67,10 @@ export function chunk(analysis: FileAnalysis, options?: ChunkOptions): SimpleChu
   return opts.combine ? combineSmallChunks(chunks, opts.maxSize) : chunks;
 }
 
-/**
- * Chunk multiple files at once
- */
 export function chunkAll(analyses: FileAnalysis[], options?: ChunkOptions): SimpleChunk[] {
   return analyses.flatMap(analysis => chunk(analysis, options));
 }
 
-/**
- * Combine small chunks into larger ones
- */
 function combineSmallChunks(chunks: SimpleChunk[], maxSize: number): SimpleChunk[] {
   if (chunks.length <= 1) return chunks;
   
@@ -110,9 +92,6 @@ function combineSmallChunks(chunks: SimpleChunk[], maxSize: number): SimpleChunk
   return result;
 }
 
-/**
- * Split large chunks
- */
 export function splitLargeChunks(chunks: SimpleChunk[], maxSize: number): SimpleChunk[] {
   const result: SimpleChunk[] = [];
   

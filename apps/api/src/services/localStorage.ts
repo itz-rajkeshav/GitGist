@@ -17,11 +17,7 @@ export class LocalStorage {
     };
   }
 
-  /**
-   * Create a sanitized folder name from repository URL
-   */
   private sanitizeRepoName(repoUrl: string): string {
-    // Extract owner/repo from URL
     const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
     if (!match) {
       throw new Error('Invalid GitHub repository URL');
@@ -30,13 +26,9 @@ export class LocalStorage {
     const [, owner, repo] = match;
     const repoName = repo.replace('.git', '');
     
-    // Sanitize for filesystem
     return `${owner}_${repoName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
-  /**
-   * Get the storage directory for a repository
-   */
   private getRepoStorageDir(repoUrl: string): string {
     const sanitizedName = this.sanitizeRepoName(repoUrl);
     
@@ -48,47 +40,16 @@ export class LocalStorage {
     return path.join(this.config.baseDir, sanitizedName);
   }
 
- private async deleteExistingRepoAnalysis(repoUrl: string): Promise<void> {
-  try {
-    const sanitizedName = this.sanitizeRepoName(repoUrl);
-    const repoDir = path.join(this.config.baseDir, sanitizedName);
-    
-    if (await fs.pathExists(repoDir)) {
-      if (this.config.createTimestampFolders) {
-        // Delete all timestamped subdirectories but keep the root repo directory
-        const entries = await fs.readdir(repoDir);
-        for (const entry of entries) {
-          const entryPath = path.join(repoDir, entry);
-          const stat = await fs.stat(entryPath);
-          if (stat.isDirectory()) {
-            await fs.remove(entryPath);
-          }
-        }
-      } else {
-        // Delete the entire repo directory if not using timestamps
-        await fs.remove(repoDir);
-      }
-    }
-  } catch (error: any) {
-    throw new Error(`Failed to delete existing repository analysis: ${error.message}`);
-  }
-}
-
-  /**
-   * Save a single file analysis
-   */
   async saveFileAnalysis(repoUrl: string, analysis: FileAnalysis): Promise<string> {
     try {
       const repoDir = this.getRepoStorageDir(repoUrl);
       
-      // Create directory structure based on original file path
       const fileDir = path.dirname(analysis.file);
       const fileName = path.basename(analysis.file, path.extname(analysis.file));
       const fullDir = path.join(repoDir, fileDir);
       
       await fs.ensureDir(fullDir);
       
-      // Save the analysis as JSON
       const outputPath = path.join(fullDir, `${fileName}_analysis.json`);
       await fs.writeJson(outputPath, analysis, { spaces: 2 });
       
@@ -98,15 +59,11 @@ export class LocalStorage {
     }
   }
 
-  /**
-   * Save multiple file analyses
-   */
-   async saveMultipleFileAnalyses(repoUrl: string, analyses: FileAnalysis[]): Promise<{
+  async saveMultipleFileAnalyses(repoUrl: string, analyses: FileAnalysis[]): Promise<{
     savedFiles: string[];
     summary: any;
   }> {
     try {
-      // Delete all existing repositories before saving the new one
       const existingRepos = await this.listStoredRepositories();
       for (const repo of existingRepos) {
         const repoPath = path.join(this.config.baseDir, repo);
@@ -118,19 +75,16 @@ export class LocalStorage {
       
       const savedFiles: string[] = [];
       
-      // Save individual file analyses
       for (const analysis of analyses) {
         const savedPath = await this.saveFileAnalysis(repoUrl, analysis);
         savedFiles.push(savedPath);
       }
       
-      // Create a summary of all analyses
       const summary = this.createSummary(analyses);
       const summaryPath = path.join(repoDir, 'summary.json');
       await fs.writeJson(summaryPath, summary, { spaces: 2 });
       savedFiles.push(summaryPath);
       
-      // Create an index file with all file paths
       const indexPath = path.join(repoDir, 'index.json');
       const index = {
         repository: repoUrl,
@@ -149,9 +103,6 @@ export class LocalStorage {
     }
   }
 
-  /**
-   * Create a summary of all file analyses
-   */
   private createSummary(analyses: FileAnalysis[]): any {
     const summary = {
       totalFiles: analyses.length,
@@ -183,7 +134,6 @@ export class LocalStorage {
       summary.totalClasses += analysis.ast_summary.classes.length;
       summary.totalVariables += analysis.ast_summary.variables.length;
       
-      // Count import sources
       analysis.ast_summary.imports.forEach(imp => {
         summary.mostUsedImports[imp.source] = (summary.mostUsedImports[imp.source] || 0) + 1;
       });
@@ -194,9 +144,6 @@ export class LocalStorage {
     return summary;
   }
 
-  /**
-   * Load a file analysis
-   */
   async loadFileAnalysis(filePath: string): Promise<FileAnalysis> {
     try {
       return await fs.readJson(filePath);
@@ -205,9 +152,6 @@ export class LocalStorage {
     }
   }
 
-  /**
-   * Find the latest analysis folder for a repository
-   */
   private async findLatestAnalysisFolder(repoUrl: string): Promise<string> {
     try {
       const sanitizedName = this.sanitizeRepoName(repoUrl);
@@ -226,7 +170,6 @@ export class LocalStorage {
         const stat = await fs.stat(entryPath);
         
         if (stat.isDirectory()) {
-          // Use file modification time instead of parsing folder names
           if (stat.mtime > latestTime) {
             latestTime = stat.mtime;
             latestFolder = entryPath;
@@ -244,14 +187,10 @@ export class LocalStorage {
     }
   }
 
-  /**
-   * Load all analyses for a repository
-   */
   async loadRepoAnalyses(repoUrl: string): Promise<FileAnalysis[]> {
     try {
       const latestFolder = await this.findLatestAnalysisFolder(repoUrl);
       
-      // Scan for all analysis files recursively
       const analyses: FileAnalysis[] = [];
       
       const scanForAnalyses = async (dir: string): Promise<void> => {
@@ -286,9 +225,6 @@ export class LocalStorage {
     }
   }
 
-  /**
-   * List all stored repositories
-   */
   async listStoredRepositories(): Promise<string[]> {
     try {
       if (!(await fs.pathExists(this.config.baseDir))) {
@@ -310,83 +246,6 @@ export class LocalStorage {
       return repos;
     } catch (error: any) {
       throw new Error(`Failed to list stored repositories: ${error.message}`);
-    }
-  }
-
-  /**
-   * Clean up old analyses (older than specified days)
-   */
-  async cleanupOldAnalyses(daysOld: number = 30): Promise<number> {
-    try {
-      if (!(await fs.pathExists(this.config.baseDir))) {
-        return 0;
-      }
-      
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-      
-      const entries = await fs.readdir(this.config.baseDir);
-      let deletedCount = 0;
-      
-      for (const entry of entries) {
-        const entryPath = path.join(this.config.baseDir, entry);
-        const stat = await fs.stat(entryPath);
-        
-        if (stat.isDirectory() && stat.mtime < cutoffDate) {
-          await fs.remove(entryPath);
-          deletedCount++;
-        }
-      }
-      
-      return deletedCount;
-    } catch (error: any) {
-      throw new Error(`Failed to cleanup old analyses: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get storage statistics
-   */
-  async getStorageStats(): Promise<{
-    totalRepositories: number;
-    totalSizeBytes: number;
-    oldestAnalysis?: Date;
-    newestAnalysis?: Date;
-  }> {
-    try {
-      if (!(await fs.pathExists(this.config.baseDir))) {
-        return { totalRepositories: 0, totalSizeBytes: 0 };
-      }
-      
-      const repos = await this.listStoredRepositories();
-      let totalSize = 0;
-      let oldestDate: Date | undefined;
-      let newestDate: Date | undefined;
-      
-      for (const repo of repos) {
-        const repoPath = path.join(this.config.baseDir, repo);
-        const stat = await fs.stat(repoPath);
-        
-        // This is a rough estimate - for accurate size, we'd need to traverse all files
-        totalSize += stat.size;
-        
-        if (!oldestDate || stat.mtime < oldestDate) {
-          oldestDate = stat.mtime;
-        }
-        
-        if (!newestDate || stat.mtime > newestDate) {
-          newestDate = stat.mtime;
-        }
-      }
-      
-      return {
-        totalRepositories: repos.length,
-        totalSizeBytes: totalSize,
-        oldestAnalysis: oldestDate,
-        newestAnalysis: newestDate
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to get storage stats: ${error.message}`);
     }
   }
 }

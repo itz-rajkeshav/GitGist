@@ -15,16 +15,6 @@ export interface FileAnalysis {
   ast_summary: any;
 }
 
-export interface RepositorySummary {
-  totalFiles: number;
-  totalFunctions: number;
-  totalClasses: number;
-  totalImports: number;
-  totalExports: number;
-  totalVariables: number;
-  fileTypes: string[];
-}
-
 export interface AnalysisResult {
   repository: string;
   totalFiles: number;
@@ -51,8 +41,7 @@ export class ASTAnalysisService {
   async analyzeRepository(
     repoUrl: string, 
     progressCallback?: (progress: AnalysisProgress) => void,
-    enableChunking: boolean = true,
-    enableEmbedding: boolean = false
+    enableChunking: boolean = true
   ): Promise<AnalysisResult> {
     const startTime = Date.now();
     const errors: string[] = [];
@@ -60,14 +49,12 @@ export class ASTAnalysisService {
     try {
       console.log(`Starting analysis of repository: ${repoUrl}`);
       
-      // Fetch all supported files from the repository
       const files = await this.fileFetcher.getAllSupportedFilesWithContent(repoUrl);
       console.log(`Found ${files.length} supported files to analyze`);
       
       const analyses: FileAnalysis[] = [];
       let processedFiles = 0;
       
-      // Process each file
       for (const file of files) {
         try {
           if (progressCallback) {
@@ -81,10 +68,8 @@ export class ASTAnalysisService {
           
           console.log(`Analyzing file: ${file.path}`);
           
-          // Parse the file content
           const astSummary = this.astParser.parseCode(file.content, file.path);
           
-          // Create file analysis
           const analysis: FileAnalysis = {
             file: file.path,
             ast_summary: astSummary
@@ -93,7 +78,6 @@ export class ASTAnalysisService {
           analyses.push(analysis);
           processedFiles++;
           
-          // Log the analysis for this file
           console.log(`✓ ${file.path}:`, {
             functions: astSummary.functions.length,
             imports: astSummary.imports.length,
@@ -109,11 +93,9 @@ export class ASTAnalysisService {
         }
       }
       
-      // Save all analyses to local storage
       console.log(`Saving ${analyses.length} analyses to local storage...`);
       const { savedFiles, summary } = await this.localStorage.saveMultipleFileAnalyses(repoUrl, analyses);
       
-      // Generate chunks if enabled
       let chunks: SimpleChunk[] | undefined;
       if (enableChunking) {
         try {
@@ -121,7 +103,6 @@ export class ASTAnalysisService {
           chunks = chunkAll(analyses, { maxSize: 500, combine: true });
           console.log(`✅ Generated ${chunks.length} chunks`);
           
-          // Log detailed chunk information
           this.logChunks(chunks);
           this.logChunkStatistics(chunks);
         } catch (error: any) {
@@ -139,7 +120,7 @@ export class ASTAnalysisService {
         processedFiles,
         analyses,
         summary,
-        storagePath: savedFiles[savedFiles.length - 1], // Index file path
+        storagePath: savedFiles[savedFiles.length - 1],
         errors,
         duration,
         chunks
@@ -156,9 +137,6 @@ export class ASTAnalysisService {
     }
   }
 
-  /**
-   * Log chunk details in a simple format
-   */
   private logChunks(chunks: SimpleChunk[]): void {
     console.log('\n📝 Chunk Summary:');
     console.log('─'.repeat(60));
@@ -172,9 +150,6 @@ export class ASTAnalysisService {
     });
   }
 
-  /**
-   * Log chunk statistics by type
-   */
   private logChunkStatistics(chunks: SimpleChunk[]): void {
     const stats = {
       function: 0,
@@ -200,9 +175,6 @@ export class ASTAnalysisService {
     console.log('─'.repeat(40));
   }
 
-  /**
-   * Get analysis for a specific file
-   */
   async analyzeFile(repoUrl: string, filePath: string): Promise<FileAnalysis> {
     try {
       const repoInfo = this.fileFetcher.parseRepoUrl(repoUrl);
@@ -223,9 +195,6 @@ export class ASTAnalysisService {
     }
   }
 
-  /**
-   * Load stored analyses for a repository
-   */
   async loadStoredAnalyses(repoUrl: string): Promise<FileAnalysis[]> {
     try {
       return await this.localStorage.loadRepoAnalyses(repoUrl);
@@ -234,59 +203,11 @@ export class ASTAnalysisService {
     }
   }
 
-  /**
-   * Get repository statistics without full analysis
-   */
-  async getRepositoryStats(repoUrl: string): Promise<any> {
-    try {
-      const repoInfo = this.fileFetcher.parseRepoUrl(repoUrl);
-      return await this.fileFetcher.getRepoStats(repoInfo);
-    } catch (error: any) {
-      throw new Error(`Failed to get repository stats: ${error.message}`);
-    }
-  }
-
-  /**
-   * Load previously stored analysis
-   */
-  async loadStoredAnalysis(repoUrl: string): Promise<FileAnalysis[]> {
-    try {
-      return await this.localStorage.loadRepoAnalyses(repoUrl);
-    } catch (error: any) {
-      throw new Error(`Failed to load stored analyses: ${error.message}`);
-    }
-  }
-
-  /**
-   * List all stored repository analyses
-   */
   async listStoredAnalyses(): Promise<string[]> {
     try {
       return await this.localStorage.listStoredRepositories();
     } catch (error: any) {
       throw new Error(`Failed to list stored analyses: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get storage statistics
-   */
-  async getStorageStats(): Promise<any> {
-    try {
-      return await this.localStorage.getStorageStats();
-    } catch (error: any) {
-      throw new Error(`Failed to get storage stats: ${error.message}`);
-    }
-  }
-
-  /**
-   * Clean up old analyses
-   */
-  async cleanupOldAnalyses(daysOld: number = 30): Promise<number> {
-    try {
-      return await this.localStorage.cleanupOldAnalyses(daysOld);
-    } catch (error: any) {
-      throw new Error(`Failed to cleanup old analyses: ${error.message}`);
     }
   }
 }
